@@ -401,4 +401,3 @@ Issues are a great way to contribute to the project:
 - Help triage existing issues
 - Provide additional context or reproduction steps
 
-Before creating a new issue, please search existing issues to avoid duplicates.
