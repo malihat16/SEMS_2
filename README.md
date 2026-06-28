@@ -342,23 +342,6 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 - **Code Quality**: ESLint, Prettier, and automated formatting
 - **Modern Tooling**: Yarn 4 with Corepack, latest dependencies
 
-## Team Members
-
-| Name                          | Student ID | Email                       |
-| ----------------------------- | ---------- | --------------------------- |
-| Suman Datta                   | 30668786   | sdat0004@student.monash.edu |
-| Lim Woo Shen                  | 32879857   | wlim0061@student.monash.edu |
-| Maliha Tariq                  | 33473692   | mtar0012@student.monash.edu |
-| Taha Fareed                   | 32813473   | tfar0012@student.monash.edu |
-| Mohamed shaahid Mohamed Altaf | 33261784   | mmoh0162@student.monash.edu |
-
-## Support
-
-For support, please contact the development team or create an issue in the repository.
-
-## Issues and Bug Reports
-
-We use GitHub Issues to track bugs, feature requests, and project enhancements. When reporting issues:
 
 ### Bug Reports
 
