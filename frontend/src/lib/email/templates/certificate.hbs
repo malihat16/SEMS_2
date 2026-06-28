@@ -1,0 +1,200 @@
+<html lang='en'>
+	<head>
+		<meta charset='UTF-8' />
+		<meta name='viewport' content='width=device-width, initial-scale=1.0' />
+		<title>Your Certificate of Attendance</title>
+		<style>
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+				line-height: 1.6;
+				color: #333;
+				background-color: #f4f4f4;
+				margin: 0;
+				padding: 0;
+			}
+			.container {
+				max-width: 600px;
+				margin: 20px auto;
+				background-color: #ffffff;
+				border-radius: 8px;
+				overflow: hidden;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			}
+			.header {
+				background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);
+				color: #ffffff;
+				padding: 30px 20px;
+				text-align: center;
+			}
+			.header h1 {
+				margin: 0;
+				font-size: 24px;
+				font-weight: 600;
+			}
+			.header p {
+				margin: 10px 0 0 0;
+				font-size: 16px;
+				opacity: 0.95;
+			}
+			.content {
+				padding: 30px 20px;
+			}
+			.greeting {
+				font-size: 18px;
+				margin-bottom: 20px;
+				color: #2c3e50;
+			}
+			.certificate-notice {
+				background-color: #e8daef;
+				border-left: 4px solid #8e44ad;
+				padding: 20px;
+				margin: 20px 0;
+				border-radius: 4px;
+				text-align: center;
+			}
+			.certificate-notice strong {
+				color: #6c3483;
+				font-size: 18px;
+			}
+			.certificate-notice p {
+				margin: 10px 0 0 0;
+				color: #6c3483;
+			}
+			.event-details {
+				background-color: #f8f9fa;
+				border-left: 4px solid #8e44ad;
+				padding: 15px;
+				margin: 20px 0;
+				border-radius: 4px;
+			}
+			.event-details h2 {
+				margin: 0 0 15px 0;
+				font-size: 20px;
+				color: #8e44ad;
+			}
+			.detail-row {
+				margin: 10px 0;
+				display: flex;
+				align-items: flex-start;
+			}
+			.detail-label {
+				font-weight: 600;
+				min-width: 100px;
+				color: #555;
+			}
+			.detail-value {
+				color: #333;
+				flex: 1;
+			}
+			.attachment-info {
+				background-color: #d1ecf1;
+				border-left: 4px solid #17a2b8;
+				padding: 15px;
+				margin: 25px 0;
+				border-radius: 4px;
+			}
+			.attachment-info h3 {
+				margin: 0 0 10px 0;
+				color: #0c5460;
+				font-size: 18px;
+			}
+			.attachment-info p {
+				margin: 5px 0;
+				color: #0c5460;
+			}
+			.note {
+				background-color: #fff3cd;
+				border-left: 4px solid #ffc107;
+				padding: 15px;
+				margin: 20px 0;
+				border-radius: 4px;
+			}
+			.note strong {
+				color: #856404;
+			}
+			.footer {
+				background-color: #f8f9fa;
+				padding: 20px;
+				text-align: center;
+				font-size: 14px;
+				color: #6c757d;
+				border-top: 1px solid #dee2e6;
+			}
+			.footer a {
+				color: #8e44ad;
+				text-decoration: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class='container'>
+			<div class='header'>
+				<h1>Your Certificate is Ready!</h1>
+				<p>Certificate of Attendance</p>
+			</div>
+
+			<div class='content'>
+				<p class='greeting'>Hello {{attendeeName}},</p>
+
+				<div class='certificate-notice'>
+					<strong>Congratulations!</strong>
+					<p>Your certificate of attendance is attached to this email.</p>
+				</div>
+
+				<p>We're pleased to provide you with your official certificate of attendance for the
+					following event:</p>
+
+				<div class='event-details'>
+					<h2>{{eventName}}</h2>
+
+					{{#if eventDate}}
+						<div class='detail-row'>
+							<span class='detail-label'>Date:</span>
+							<span class='detail-value'>{{formatDateTime eventDate}}</span>
+						</div>
+					{{/if}}
+
+					{{#if eventVenue}}
+						<div class='detail-row'>
+							<span class='detail-label'>Venue:</span>
+							<span class='detail-value'>{{eventVenue}}</span>
+						</div>
+					{{/if}}
+
+					{{#if eventOrganiser}}
+						<div class='detail-row'>
+							<span class='detail-label'>Organiser:</span>
+							<span class='detail-value'>{{eventOrganiser}}</span>
+						</div>
+					{{/if}}
+				</div>
+
+				<div class='attachment-info'>
+					<h3>About Your Certificate</h3>
+					<p>Your certificate has been attached to this email as a PDF file.</p>
+					<p>You can download, print, or share this certificate as needed.</p>
+					<p>The certificate includes your name, the event details, and an official signature.</p>
+				</div>
+
+				<div class='note'>
+					<strong>Need Help?</strong><br />
+					If you have trouble opening the PDF file, make sure you have a PDF reader installed on
+					your device. Most modern browsers and devices can open PDF files natively.
+				</div>
+
+				<p>Thank you for your participation and continued engagement with our events!</p>
+
+				<p style='margin-top: 30px;'>
+					Best regards,<br />
+					<strong>Student Event Management System (SEMS)</strong>
+				</p>
+			</div>
+
+			<div class='footer'>
+				<p>This is an automated email from SEMS. Please do not reply to this email.</p>
+				<p>If you have any questions about your certificate, please contact the event organiser.</p>
+			</div>
+		</div>
+	</body>
+</html>

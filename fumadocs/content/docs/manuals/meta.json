@@ -1,0 +1,20 @@
+{
+  "title": "Manuals",
+  "description": "User Manuals",
+  "icon": "Newspaper",
+  "root": true,
+  "pages": [
+    "---Introduction---",
+    "getting-started",
+    "profile",
+    
+    "---Students---",
+    "...students",
+
+    "---Organisers---",
+    "...organisers",
+
+    "---Admins---",
+    "...admins"
+  ]
+}

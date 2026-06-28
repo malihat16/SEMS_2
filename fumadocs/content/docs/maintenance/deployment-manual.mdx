@@ -1,0 +1,554 @@
+---
+title: Deployment Manual
+description: Deploy SEMS2 on Dokploy with self-hosted Supabase
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+# Deploying SEMS2 to Production
+
+This guide provides comprehensive instructions for deploying the Student Experience Management System (SEMS2) on Dokploy with a self-hosted Supabase instance.
+
+## Overview
+
+SEMS2 is a monolithic SvelteKit application that manages events, registrations, and student organizations. The deployment architecture consists of:
+
+- **Frontend & Backend**: SvelteKit 2.16 monolithic application with server-side rendering and API routes
+- **Database**: PostgreSQL 17 via self-hosted Supabase
+- **Email Service**: Resend for transactional email delivery
+- **Authentication**: Supabase Auth with Google OAuth integration
+- **Deployment Platform**: Dokploy PaaS (Platform as a Service)
+
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Dokploy Server                        │
+│                                                          │
+│  ┌───────────────────┐         ┌──────────────────────┐  │
+│  │   SvelteKit App   │────────>│  Supabase Instance   │  │
+│  │   (Port 3000)     │         │  - PostgreSQL 17     │  │
+│  │                   │         │  - Auth Service      │  │
+│  │  - Server Routes  │         │  - REST API          │  │
+│  │  - SSR Pages      │         │  - RLS Policies      │  │
+│  │  - API Endpoints  │         └──────────────────────┘  │
+│  └───────────────────┘                                   │
+│          │                                               │
+│          │                                               │
+└──────────────────────────────────────────────────────────┘
+           │
+           │
+           v
+   ┌───────────────────┐
+   │   Resend API      │ (External Service)
+   │   Email Delivery  │
+   └───────────────────┘
+
+```
+
+### Environment Variables Flow
+
+Environment variables are injected at different stages of the deployment lifecycle:
+
+- **Build-time** (`PUBLIC_*`): Embedded into the Docker image during the build process
+  - `PUBLIC_SUPABASE_URL`
+  - `PUBLIC_SUPABASE_ANON_KEY`
+- **Runtime** (Server-only): Injected when the container starts
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `RESEND_API_KEY`
+  - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+
+## Prerequisites
+
+Before beginning the deployment process, ensure the following requirements are met:
+
+### Required Access & Accounts
+
+- **Linux VPS or Dedicated Server**: A server running Ubuntu LTS with Dokploy PaaS installed
+- **Dokploy Account**: Administrative access to the Dokploy server dashboard
+- **Domain Name**: A registered domain for the SEMS2 deployment (e.g., `sems2.university.edu`)
+- **Git Repository**: Access credentials for the SEMS2 repository
+- **Resend Account**: API access for transactional email delivery ([resend.com](https://resend.com))
+- **Google Cloud Console**: OAuth 2.0 credentials for authentication ([console.cloud.google.com](https://console.cloud.google.com))
+
+### Local Development Tools
+
+- **Docker**: Required for running the Supabase CLI
+- **Supabase CLI**: For executing database migrations
+  ```bash
+  npm install -g supabase
+  ```
+- **Node.js 20+**: Required for local build testing (optional)
+- **Git**: For repository management
+
+### Technical Knowledge
+
+- Basic understanding of Docker containerization
+- Familiarity with environment variable configuration
+- Basic PostgreSQL/SQL knowledge for database migrations
+- Understanding of DNS record management
+
+## Deployment Steps
+
+<Steps>
+
+<Step>
+### Provision a Cloud Server
+
+Deploy an Ubuntu LTS server from a cloud infrastructure provider. The instructions below reference DigitalOcean, which was used during the initial SEMS2 prototype development. However, any cloud provider that supports Ubuntu LTS deployment is suitable.
+
+1. **Create a new server instance**:
+
+   - Operating System: Ubuntu 24.04 LTS
+   - Minimum Specifications: 8GB RAM, 4 vCPUs (required for Docker image builds via Dokploy)
+   - Security: Configure SSH keys for secure access
+   - Initialize and deploy the server instance
+
+2. **Update the system**:
+
+   ```bash
+   sudo apt update && sudo apt full-upgrade -y
+   ```
+
+3. **Implement security hardening**:
+
+   Configure essential security measures including:
+   - UFW (Uncomplicated Firewall) configuration
+   - SSH key-only authentication
+   - Root login disabled
+   - Fail2ban installation (recommended)
+
+   For comprehensive security guidance, refer to the [Ubuntu Security Hardening Guide](https://ubuntu.com/blog/what-is-system-hardening-definition-and-best-practices).
+
+</Step>
+
+<Step>
+### Install Dokploy PaaS
+
+Install Dokploy on the provisioned server by following the official [Dokploy Installation Guide](https://docs.dokploy.com/docs/core/installation). The installation process configures Docker, networking, and the Dokploy dashboard.
+
+</Step>
+
+<Step>
+
+### Deploy Supabase Instance
+
+Deploy a self-hosted Supabase instance using the official Dokploy Supabase template.
+
+1. **Create a new Dokploy project**:
+
+   - Navigate to the Dokploy dashboard
+   - Create a new project (e.g., "SEMS2 Production")
+
+2. **Initialize Supabase service**:
+
+   - Within the project, select **Create Service** → **Template**
+   - Filter templates by "Supabase"
+   - Select the Supabase template (version 1.25.04, Dokploy ≥ 0.22.5)
+
+3. **Configure Google OAuth integration**:
+
+   Modify the `docker-compose.yml` file to enable Google OAuth. Locate the `auth` service and add the following environment variables:
+
+   ```yaml
+   auth:
+     environment:
+       # Enable External Google Auth
+       GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${EXTERNAL_GOOGLE_AUTH_ENABLED}
+       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET}
+       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${EXTERNAL_GOOGLE_REDIRECT_URI}
+   ```
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Reference Configuration</div>
+     <div className="mt-2 text-sm">
+       A complete <code>docker-compose.yml</code> configuration example from the SEMS2 prototype is available at: <code>sems2-prototype/dokploy/supabase/docker-compose.yml</code>
+     </div>
+   </div>
+
+4. **Configure environment variables**:
+
+   Navigate to the Supabase service in Dokploy and configure the following environment variables:
+
+   | Variable | Description | Example Value |
+   |----------|-------------|---------------|
+   | `POSTGRES_PASSWORD` | PostgreSQL admin password | (auto-generated or custom) |
+   | `SITE_URL` | Main application URL | `https://sems2.university.edu` |
+   | `GOOGLE_CLIENT_ID` | OAuth client ID | (configured in Step 5) |
+   | `GOOGLE_CLIENT_SECRET` | OAuth client secret | (configured in Step 5) |
+   | `EXTERNAL_GOOGLE_REDIRECT_URI` | OAuth callback URL | `https://<supabase-domain>/auth/v1/callback` |
+
+   <div className="bg-pink-50 dark:bg-pink-950 border border-pink-100 dark:border-pink-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">⚠️ Known Issue: JWT Key Generation</div>
+     <div className="mt-2 text-sm">
+       The Dokploy Supabase template may not correctly generate the following JWT authentication keys:
+       <ul className="list-disc ml-4 mt-2">
+         <li><code>JWT_SECRET</code>: 32-40 character alphanumeric secret</li>
+         <li><code>ANON_KEY</code>: JWT token for anonymous/public access</li>
+         <li><code>SERVICE_ROLE_KEY</code>: JWT token for administrative access</li>
+       </ul>
+
+       <strong className="block mt-3">Workaround:</strong>
+       <ol className="list-decimal ml-4 mt-2">
+         <li>Visit the <a href="https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys" className="underline">Supabase API Key Generation Guide</a></li>
+         <li>Generate a 40-character alphanumeric <code>JWT_SECRET</code></li>
+         <li>Generate corresponding <code>ANON_KEY</code> and <code>SERVICE_ROLE_KEY</code> tokens</li>
+         <li>Update these values in the Supabase service's Environment tab</li>
+         <li>Save the environment configuration</li>
+         <li>Redeploy the service from the General tab</li>
+       </ol>
+
+       <div className="mt-2">
+         <strong>Issue Tracker:</strong> <a href="https://github.com/Dokploy/templates/issues/317" className="underline">Dokploy/templates#317</a>
+       </div>
+     </div>
+   </div>
+
+5. **Reference environment configuration**:
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Reference Configuration</div>
+     <div className="mt-2 text-sm">
+       An example environment configuration from the SEMS2 prototype is available at: <code>sems2-prototype/dokploy/supabase/.env.example</code>
+     </div>
+   </div>
+
+6. **Configure custom domain**:
+
+   - Navigate to the Supabase service → **Domains** tab
+   - Add a custom domain (e.g., `supabase.sems-maintainers.com`)
+   - Service: `kong`
+   - Port: `8000`
+   - Enable HTTPS with Let's Encrypt for automatic SSL certificate provisioning
+
+7. **Retrieve connection credentials**:
+
+   After successful deployment:
+   - Access the Supabase dashboard (e.g., `https://supabase.sems-maintainers.com`)
+   - Click **Connect** in the top-left corner
+   - Select the **App Frameworks** tab
+   - Record the following values:
+     - `PUBLIC_SUPABASE_URL`
+     - `PUBLIC_SUPABASE_ANON_KEY`
+   - These credentials, along with the `SERVICE_ROLE_KEY` generated earlier, are required for subsequent configuration steps
+
+</Step>
+
+<Step>
+
+### Execute Database Migrations
+
+Apply the SEMS2 database schema to the Supabase instance using the Supabase CLI.
+
+1. **Navigate to the project root** on the local development machine:
+
+   ```bash
+   cd sems2-prototype
+   ```
+
+2. **Configure SSL mode** for the database connection:
+
+   **Windows (PowerShell)**:
+   ```powershell
+   $env:PGSSLMODE = "disable"
+   ```
+
+   **macOS/Linux (Bash)**:
+   ```bash
+   export PGSSLMODE=disable
+   ```
+
+3. **Execute migrations**:
+
+   ```bash
+   supabase db push --db-url "postgres://postgres:<POSTGRES_PASSWORD>@<supabase-host>:5432/postgres"
+   ```
+
+   Replace placeholders:
+   - `<POSTGRES_PASSWORD>`: The PostgreSQL password configured in Step 3
+   - `<supabase-host>`: The Supabase domain (e.g., `supabase.sems-maintainers.com`)
+
+   This command executes all migration files sequentially, creating:
+   - Core database tables (profiles, events, organizations, registrations)
+   - Lookup tables (roles, statuses, event states)
+   - Row Level Security (RLS) policies
+   - Audit trail triggers and functions
+
+4. **Verify migration success**:
+
+   Access Supabase Studio and confirm:
+   - **Table Editor**: All tables are present with correct schemas
+   - **Authentication** → **Policies**: RLS policies are enabled and configured
+
+<div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+  <div className="font-semibold">💡 Advanced Migration Management</div>
+  <div className="mt-2 text-sm">
+    For detailed information on creating new migrations, rollback procedures, and migration troubleshooting, refer to the <a href="/docs/maintenance/migrations">Database Migrations Guide</a>.
+  </div>
+</div>
+
+</Step>
+
+<Step>
+
+### Configure Google OAuth
+
+Configure Google OAuth 2.0 credentials for user authentication.
+
+1. **Follow the official Supabase guide**:
+
+   Refer to the [Supabase Google OAuth Documentation](https://supabase.com/docs/guides/auth/social-login/auth-google) for comprehensive setup instructions.
+
+2. **Configuration summary**:
+
+   - Create a new project in Google Cloud Console
+   - Configure OAuth 2.0 credentials
+   - Set authorized redirect URIs:
+     - `https://<supabase-domain>/auth/v1/callback`
+   - Obtain the Client ID and Client Secret
+   - Update the Supabase environment variables (completed in Step 3)
+
+3. **Reference configuration**:
+
+   The image below shows the OAuth configuration used during the SEMS2 prototype development:
+
+   ![Google OAuth Setup](/images/SEMS_Google_Auth_Platform.png)
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       The configuration shown includes additional authorized redirect URIs from the development environment. Only the production callback URI is required for the deployment.
+     </div>
+   </div>
+
+</Step>
+
+<Step>
+
+### Configure Resend Email Service
+
+Set up Resend for transactional email delivery, including event notifications, reminders, and certificate generation.
+
+1. **Create a Resend account**:
+
+   Register at [resend.com](https://resend.com) and verify the account.
+
+2. **Configure and verify the domain**:
+
+   - Navigate to **Domains** → **Add Domain**
+   - Enter the domain name (e.g., `university.edu`)
+   - Add the provided DNS records to the domain registrar:
+     - SPF record
+     - DKIM record
+     - DMARC record
+   - Wait for DNS propagation and verification (typically 5-15 minutes)
+
+3. **Generate API key**:
+
+   - Navigate to **API Keys** → **Create API Key**
+   - Configuration:
+     - Name: `SEMS2 Production`
+     - Permission Level: **Send Access**
+   - Copy the generated API key (format: `re_...`)
+   - Store securely for use in Step 7
+
+</Step>
+
+<Step>
+
+### Deploy SvelteKit Application
+
+Deploy the main SEMS2 application to Dokploy.
+
+1. **Create a new application service**:
+
+   In the Dokploy dashboard:
+   - Navigate to the SEMS2 project
+   - Select **Create Service** → **Application**
+   - Name: `frontend`
+
+2. **Configure Git integration**:
+
+   - In the Dokploy sidebar, navigate to **Git**
+   - Select **Add Git Provider**
+   - Add GitLab and follow the authentication flow
+   - Return to the project and configure:
+     - Provider: GitLab
+     - Account: (select authenticated account)
+     - Repository: `sems2-prototype`
+     - Branch: `main`
+     - Build Path: `/frontend`
+     - Watch Paths: `/frontend/**`
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       The configuration shown below demonstrates the setup used during prototype development:
+     </div>
+   </div>
+
+   ![Frontend General Configuration](/images/SEMS_Frontend_General.png)
+
+3. **Configure build settings**:
+
+   - Build Type: **Dockerfile**
+   - Dockerfile Path: `Dockerfile`
+
+4. **Configure environment variables**:
+
+   Navigate to the **Environment** tab:
+
+   **Runtime Environment Variables** (Environment Settings):
+
+   | Key | Value |
+   |-----|-------|
+   | `SUPABASE_SERVICE_ROLE_KEY` | Service role key from Step 3 |
+   | `RESEND_API_KEY` | API key from Step 6 (format: `re_...`) |
+
+   **Build-time Arguments**:
+
+   | Key | Value |
+   |-----|-------|
+   | `PUBLIC_SUPABASE_URL` | Supabase URL from Step 3 |
+   | `PUBLIC_SUPABASE_ANON_KEY` | Anonymous key from Step 3 |
+
+5. **Configure custom domain**:
+
+   Navigate to the **Domains** tab:
+   - Click **Add Domain**
+   - Domain: `sems.university.edu`
+   - Port: `3000`
+   - Enable HTTPS with Let's Encrypt
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       Example domain configuration from prototype deployment:
+     </div>
+   </div>
+
+   ![Frontend Domain Configuration](/images/SEMS_Frontend_Domain.png)
+
+6. **Deploy the application**:
+
+   - Click the **Deploy** button
+   - Monitor the build logs for errors
+   - Verify successful deployment
+
+</Step>
+
+<Step>
+
+### Configure DNS Records
+
+Configure DNS records in the domain registrar to route traffic to the Dokploy server.
+
+1. **Obtain the server IP address**:
+
+   Navigate to the Dokploy server dashboard to find the public IP address:
+
+   ![Server IP Address](/images/SEMS_Server_IP.png)
+
+2. **Add DNS records**:
+
+   In the domain registrar's DNS management interface, add A records for each service:
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       Example DNS configuration from prototype deployment:
+     </div>
+   </div>
+
+   ![DNS Configuration Example](/images/SEMS_DNS_Settings.png)
+
+3. **Verify DNS propagation**:
+
+   DNS changes may take 5-60 minutes to propagate globally. Use online DNS lookup tools to verify propagation.
+
+</Step>
+
+<Step>
+
+### Deploy Documentation Site
+
+Deploy the Fumadocs documentation as a separate service.
+
+1. **Create a new application service**:
+
+   In the Dokploy dashboard:
+   - Navigate to the SEMS2 project
+   - Select **Create Service** → **Application**
+   - Name: `docs`
+
+2. **Configure Git integration**:
+
+   - Provider: GitLab
+   - Account: (authenticated account)
+   - Repository: `sems2-prototype`
+   - Branch: `main`
+   - Build Path: `/fumadocs`
+   - Watch Paths: `/fumadocs/**`
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       Example configuration from prototype deployment:
+     </div>
+   </div>
+
+   ![Fumadocs General Configuration](/images/SEMS_Fumadocs_General.png)
+
+3. **Configure build settings**:
+
+   - Build Type: **Dockerfile**
+   - Dockerfile Path: `Dockerfile`
+
+4. **Configure custom domain**:
+
+   Navigate to the **Domains** tab:
+   - Click **Add Domain**
+   - Domain: `docs.sems.university.edu`
+   - Port: `3000`
+   - Enable HTTPS with Let's Encrypt
+
+   <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 my-4">
+     <div className="font-semibold">📋 Prototype Reference</div>
+     <div className="mt-2 text-sm">
+       Example domain configuration from prototype deployment:
+     </div>
+   </div>
+
+   ![Fumadocs Domain Configuration](/images/SEMS_Fumadocs_Domain.png)
+
+5. **Deploy the application**:
+
+   - Click the **Deploy** button
+   - Monitor the build logs for errors
+   - Verify successful deployment
+
+</Step>
+
+</Steps>
+
+## Post-Deployment Verification
+
+After completing all deployment steps, verify the following:
+
+1. **Application Access**: Confirm all services are accessible via their configured domains
+2. **Authentication**: Test Google OAuth login flow
+3. **Database Connectivity**: Verify data persistence and retrieval
+4. **Email Delivery**: Send test emails to confirm Resend integration
+5. **SSL Certificates**: Verify HTTPS is functioning on all domains
+
+## Troubleshooting
+
+Common issues and solutions:
+
+- **Build failures**: Check Docker daemon status and available disk space
+- **Database connection errors**: Verify PostgreSQL credentials and network connectivity
+- **OAuth errors**: Confirm redirect URIs match exactly in Google Cloud Console
+- **Email delivery failures**: Verify Resend API key and domain verification status
+
+For additional support, consult the respective documentation for Dokploy, Supabase, and SvelteKit.

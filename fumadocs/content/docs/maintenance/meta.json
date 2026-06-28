@@ -1,0 +1,7 @@
+{
+  "title": "Maintenance",
+  "description": "Maintenance Documentation",
+  "icon": "Server",
+  "root": true,
+  "pages": ["deployment-manual", "migrations"]
+}
